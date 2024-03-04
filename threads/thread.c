@@ -28,6 +28,9 @@
    that are ready to run but not actually running. */
 static struct list ready_list;
 
+// busy waiting 방식 대신 sleep / wake up 방식으로 구현하기 위해 sleep list 생성
+static struct list sleep_list;
+
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -44,6 +47,8 @@ static struct list destruction_req;
 static long long idle_ticks;   /* # of timer ticks spent idle. */
 static long long kernel_ticks; /* # of timer ticks in kernel threads. */
 static long long user_ticks;   /* # of timer ticks in user programs. */
+
+static long long global_tick;
 
 /* Scheduling. */
 #define TIME_SLICE 4		  /* # of timer ticks to give each thread. */
@@ -107,12 +112,15 @@ void thread_init(void)
 	lock_init(&tid_lock);
 	list_init(&ready_list);
 	list_init(&destruction_req);
+	
+	list_init(&sleep_list);
 
 	/* Set up a thread structure for the running thread. */
 	initial_thread = running_thread();
 	init_thread(initial_thread, "main", PRI_DEFAULT);
 	initial_thread->status = THREAD_RUNNING;
 	initial_thread->tid = allocate_tid();
+	initial_thread->r_ticks = timer_ticks(); // 로컬 tick 생성
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -320,6 +328,21 @@ void thread_sleep(int64_t ticks)
 	 */
 
 	/* When you manipulate thread list, diable interrupt!! */
+	struct thread *curr = thread_current();
+	enum intr_level old_level;
+	if(curr != idle_thread){
+		old_level = intr_disable();
+		curr->status = THREAD_BLOCKED;
+		curr->r_ticks = ticks;
+		list_push_back(&sleep_list, &curr->elem);
+		schedule();
+		intr_set_level(old_level);
+	}
+}
+
+void wake_up(void){
+	struct list_elem * pop_list = list_pop_front(&sleep_list);
+	list_push_back(&ready_list,pop_list);
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY. */

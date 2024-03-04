@@ -18,7 +18,7 @@
 #endif
 
 /* Number of timer ticks since OS booted. */
-static int64_t ticks;
+static int64_t ticks; // global tick 
 
 /* Number of loops per timer tick.
    Initialized by timer_calibrate(). */
@@ -99,7 +99,7 @@ timer_elapsed(int64_t then)
 }
 
 /* Suspends execution for approximately TICKS timer ticks. */
-void timer_sleep(int64_t ticks)
+void timer_sleep(int64_t r_ticks)
 {
 	int64_t start = timer_ticks();
 
@@ -111,10 +111,11 @@ void timer_sleep(int64_t ticks)
 	 * thread_yield();
 	 */
 
-	// 현재 시작하는 Start 시점이, thread가 요청한 특정 시점 ticks를 경과했니?
-	if (timer_elapsed(start) < ticks)
+	// 현재 시작하는 Start 시점이, thread가 요청한 특정 시점 r_ticks를 경과했니?
+	if (timer_elapsed(start) < r_ticks)
 		// start 값이 invalid한 경우를 handling 해야 함!
-		thread_sleep(start + ticks); // 현재 시점으로부터 ticks만큼 지날때까지 재우기
+		thread_sleep(start + r_ticks); // 현재 시점으로부터 r_ticks만큼 지날때까지 재우기
+
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -152,9 +153,9 @@ timer_interrupt(struct intr_frame *args UNUSED)
 	 * move them to the ready list if necessary.
 	 * update the global tick.
 	 */
-
 	ticks++;
 	thread_tick();
+
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
