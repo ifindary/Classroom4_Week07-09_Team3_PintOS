@@ -117,6 +117,7 @@ void timer_sleep(int64_t ticks)
 		thread_sleep(start + ticks); // 현재 시점으로부터 ticks만큼 지날때까지 재우기
 
 	// **** r_ticks 만약 지났거나, 지금 당장이라면? 어케 해줘야 하지?? **** //
+	thread_yield();
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -154,14 +155,16 @@ timer_interrupt(struct intr_frame *args UNUSED)
 	 * move them to the ready list if necessary.
 	 * update the global tick.
 	 */
+	int64_t now = timer_ticks();
 
 	enum intr_level old_level;
-	ASSERT(!intr_context());
+	// ASSERT(!intr_context());
 	old_level = intr_disable();
 
 	// sleep_list에서 깨울 애들 찾기
 	// # case1. unsorted list
 	// for(sleep_list->next 없을때 까지)
+	thread_check_and_awake(now);
 
 	// # case2. sorted list
 	// for(; sleep_list->wakeup_ticks <= 현재시간; curr = curr->next)

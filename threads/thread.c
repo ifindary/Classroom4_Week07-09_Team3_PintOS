@@ -331,13 +331,43 @@ void thread_sleep(int64_t wakeup_ticks)
 	if (curr != idle)
 	{
 		thread_block();
-
+		list_pop_front(&ready_list);
+		// *** TODO ****
 		// timer_interrupt에서 sleep list 탐색 시간을 줄이려면,
 		// sleep_list에 insert할 때 sorted로 집어 넣기.
 		list_push_back(&sleep_list, &curr->elem);
 	}
 
 	intr_set_level(old_level);
+}
+
+void thread_check_and_awake(int64_t now_ticks)
+{
+
+	if (&sleep_list != NULL && !list_begin(&sleep_list))
+	{
+		struct thread *curr_sleep = list_entry(list_begin(&sleep_list), struct thread, elem);
+
+		for (curr_sleep; curr_sleep->elem.next != NULL; curr_sleep = list_entry(curr_sleep->elem.next, struct thread, elem))
+		{
+
+			if (curr_sleep->wakeup_ticks <= now_ticks)
+			{
+				thread_awake(&curr_sleep);
+			}
+		};
+	}
+}
+
+void thread_awake(struct thread *curr_sleep)
+{
+	list_remove(&(curr_sleep->elem));
+
+	if (curr_sleep != idle)
+	{
+		thread_unblock(curr_sleep);
+		schedule();
+	}
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
