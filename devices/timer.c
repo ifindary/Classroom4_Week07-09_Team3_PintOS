@@ -115,6 +115,8 @@ void timer_sleep(int64_t ticks)
 	if (timer_elapsed(start) < ticks)
 		// start 값이 invalid한 경우를 handling 해야 함!
 		thread_sleep(start + ticks); // 현재 시점으로부터 ticks만큼 지날때까지 재우기
+
+	// **** r_ticks 만약 지났거나, 지금 당장이라면? 어케 해줘야 하지?? **** //
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -153,8 +155,25 @@ timer_interrupt(struct intr_frame *args UNUSED)
 	 * update the global tick.
 	 */
 
+	enum intr_level old_level;
+	ASSERT(!intr_context());
+	old_level = intr_disable();
+
+	// sleep_list에서 깨울 애들 찾기
+	// # case1. unsorted list
+	// for(sleep_list->next 없을때 까지)
+
+	// # case2. sorted list
+	// for(; sleep_list->wakeup_ticks <= 현재시간; curr = curr->next)
+
+	/** if(sleep_list -> wakeup_ticks <= 현재시간){
+	 * thread_awake();
+	 * } */
+
 	ticks++;
 	thread_tick();
+
+	intr_set_level(old_level);
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

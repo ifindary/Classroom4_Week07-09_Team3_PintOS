@@ -27,6 +27,7 @@
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
+static struct list sleep_list;
 
 /* Idle thread. */
 static struct thread *idle_thread;
@@ -106,6 +107,7 @@ void thread_init(void)
 	/* Init the global thread context */
 	lock_init(&tid_lock);
 	list_init(&ready_list);
+	list_init(&sleep_list);
 	list_init(&destruction_req);
 
 	/* Set up a thread structure for the running thread. */
@@ -308,7 +310,7 @@ void thread_yield(void)
 	intr_set_level(old_level);
 }
 
-void thread_sleep(int64_t ticks)
+void thread_sleep(int64_t wakeup_ticks)
 {
 	/**
 	 * If the current thread is not idle thread,
@@ -319,7 +321,23 @@ void thread_sleep(int64_t ticks)
 	 * and call schedule()
 	 */
 
-	/* When you manipulate thread list, diable interrupt!! */
+	struct thread *curr = thread_current();
+
+	enum intr_level old_level;
+	ASSERT(!intr_context());
+	old_level = intr_disable();
+
+	curr->wakeup_ticks = wakeup_ticks;
+	if (curr != idle)
+	{
+		thread_block();
+
+		// timer_interrupt에서 sleep list 탐색 시간을 줄이려면,
+		// sleep_list에 insert할 때 sorted로 집어 넣기.
+		list_push_back(&sleep_list, &curr->elem);
+	}
+
+	intr_set_level(old_level);
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
@@ -426,6 +444,7 @@ init_thread(struct thread *t, const char *name, int priority)
 	t->tf.rsp = (uint64_t)t + PGSIZE - sizeof(void *);
 	t->priority = priority;
 	t->magic = THREAD_MAGIC;
+	t->wakeup_ticks = 0;
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
