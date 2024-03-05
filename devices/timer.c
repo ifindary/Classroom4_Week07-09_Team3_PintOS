@@ -117,13 +117,15 @@ void timer_sleep(int64_t ticks)
 
 	// 현재 시작하는 Start 시점이, thread가 요청한 특정 시점 ticks를 경과했니?
 	if (timer_elapsed(start) < ticks)
+	{
 		printf("========[TIMER] 3 after timer_elapsed ===========\n");
-	// start 값이 invalid한 경우를 handling 해야 함!
-	thread_sleep(start + ticks); // 현재 시점으로부터 ticks만큼 지날때까지 재우기
-	printf("========[TIMER] 4 after thread_sleep ===========\n");
+		// start 값이 invalid한 경우를 handling 해야 함!
+		thread_sleep(start + ticks); // 현재 시점으로부터 ticks만큼 지날때까지 재우기
+		printf("========[TIMER] 4 after thread_sleep ===========\n");
+	}
 
 	// **** r_ticks 만약 지났거나, 지금 당장이라면? 어케 해줘야 하지?? **** //
-	thread_yield();
+	// thread_yield();
 	printf("========[TIMER] 5 after thread_yield ===========\n");
 }
 

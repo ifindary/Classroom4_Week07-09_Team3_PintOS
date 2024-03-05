@@ -300,9 +300,7 @@ void thread_yield(void)
 {
 	struct thread *curr = thread_current();
 	enum intr_level old_level;
-
 	ASSERT(!intr_context());
-
 	old_level = intr_disable();
 	if (curr != idle_thread)
 		list_push_back(&ready_list, &curr->elem);
@@ -320,59 +318,24 @@ void thread_sleep(int64_t wakeup_ticks)
 	 * update the global tick if necessary,
 	 * and call schedule()
 	 */
-
-	printf("========[THREAD] 1 ===========\n");
-	printf("wakeup_ticks from timer:: %d\n", wakeup_ticks);
+	enum intr_level old_level;
+	ASSERT(!intr_context());
+	old_level = intr_disable();
 
 	struct thread *curr = thread_current();
-	printf("========[THREAD] 2 current_tread: %p ===========\n", curr);
-	printf("thread stat of curr:: %d\n", curr->status);
 
 	if (curr != idle_thread)
 	{
-		printf("========[THREAD] 3 curr is not idle ===========\n");
-
-		enum intr_level old_level;
-		ASSERT(!intr_context());
-		old_level = intr_disable();
-		printf("========[THREAD] 4 after intr_disable ===========\n");
-
-		printf("thread stat of curr:: %d\n", curr->status);
-		printf("wakeup_ticks <before> add to cuur:: %d\n", curr->wakeup_ticks);
-
+		printf("========[SLEEP] 2 in if statement ===========\n");
 		curr->wakeup_ticks = wakeup_ticks;
-
-		printf("========[THREAD] 5 after add wakeup_ticks ===========\n");
-		printf("add wakeup_ticks to cuur:: %d\n", curr->wakeup_ticks);
-
-		ASSERT(intr_get_level() == INTR_OFF);
-		printf("========[THREAD] 6 after assert interrup OFF::====\n");
-		printf("pointer of cuur:: %p\n", curr);
-		printf("thread elem of curr:: %p\n", curr->elem);
-		printf("thread wakeup ticks of curr:: %d\n", curr->wakeup_ticks);
-		printf("thread prio of curr:: %d\n", curr->priority);
-		printf("thread name of curr:: %s\n", curr->name);
-		printf("thread stat of curr:: %d\n", curr->status);
-		printf("thread id of curr:: %d\n", curr->tid);
-
-		curr->status = THREAD_BLOCKED;
-		printf("========[THREAD] 7 after thread_block() ===========\n");
+		thread_block();
 
 		// *** TODO ****
 		// timer_interrupt에서 sleep list 탐색 시간을 줄이려면,
 		// sleep_list에 insert할 때 sorted로 집어 넣기.
-		printf("first ele of SLEEP LIST <before> execution:  %p\n", list_begin(&sleep_list));
-
 		list_push_back(&sleep_list, &curr->elem);
-		printf("========[THREAD] 8 after list_push_back() ===========\n");
-		printf("first ele of SLEEP LIST <after> execution:  %p\n", list_begin(&sleep_list));
-
-		intr_set_level(old_level);
-
-		schedule();
 	}
-
-	printf("========[THREAD] 9 end of thread_sleep() ===========\n");
+	intr_set_level(old_level);
 }
 
 void thread_check_and_awake(int64_t now_ticks)
@@ -381,16 +344,14 @@ void thread_check_and_awake(int64_t now_ticks)
 	printf("now_ticks from timer:: %d\n", now_ticks);
 
 	struct thread *curr_sleep;
-	if (&sleep_list != NULL && !list_begin(&sleep_list))
+
+	if (!list_empty(&sleep_list))
 	{
-		printf("========[CHECK & AWAKE] 2 ===========\n");
-		printf("inside sleep list not NULL \n");
-		printf("first ele of sleepList %p\n", list_begin(&sleep_list));
 		curr_sleep = list_entry(list_begin(&sleep_list), struct thread, elem);
 		printf("========[CHECK & AWAKE] 3 ===========\n");
-		printf("after get list entry: %s\n", curr_sleep->name);
+		printf("after get list entry: %p\n", curr_sleep);
 
-		for (;
+		for (curr_sleep;
 			 curr_sleep->elem.next != NULL;
 			 curr_sleep = list_entry(curr_sleep->elem.next, struct thread, elem))
 		{
@@ -413,8 +374,6 @@ void thread_check_and_awake(int64_t now_ticks)
 void thread_awake(struct thread *curr_sleep)
 {
 	printf("========[AWAKE] 1 ===========\n");
-	printf("curr thread from CHECK:: %s\n", curr_sleep->name);
-
 	printf("<before> remove ele from SLEEP LIST :: %p\n", list_begin(&sleep_list));
 
 	list_remove(&(curr_sleep->elem));
@@ -429,9 +388,6 @@ void thread_awake(struct thread *curr_sleep)
 		thread_unblock(&curr_sleep);
 		printf("========[AWAKE] 4 ===========\n");
 		printf("after UNBLOCK the thread\n");
-		schedule();
-		printf("========[AWAKE] 5 ===========\n");
-		printf("after SCHEDULE\n");
 	}
 	printf("======== end of AWAKE ===========\n");
 }
@@ -530,6 +486,8 @@ kernel_thread(thread_func *function, void *aux)
 static void
 init_thread(struct thread *t, const char *name, int priority)
 {
+	printf("========[INIT THREAD] 1 ===========\n");
+
 	ASSERT(t != NULL);
 	ASSERT(PRI_MIN <= priority && priority <= PRI_MAX);
 	ASSERT(name != NULL);
@@ -541,6 +499,7 @@ init_thread(struct thread *t, const char *name, int priority)
 	t->priority = priority;
 	t->magic = THREAD_MAGIC;
 	t->wakeup_ticks = 0;
+	printf("========[INIT THREAD] end of init thread ===========\n");
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
