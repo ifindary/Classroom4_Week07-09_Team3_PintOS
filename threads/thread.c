@@ -354,12 +354,14 @@ void wake_up(int64_t r_ticks){
 	if(!list_empty(&sleep_list)){
 		// sleep_list sort
 		list_sort(&sleep_list,list_less,NULL);
-		wake_up_thread = list_entry(list_front(&sleep_list),struct thread, elem);
-		if(wake_up_thread->r_ticks <= r_ticks){
-			old_level = intr_disable();
-			wake_up_thread = list_entry(list_pop_front(&sleep_list),struct thread, elem);
-			thread_unblock(wake_up_thread);
-			intr_set_level(old_level);
+		for(size_t i = 0; i < list_size(&sleep_list); i++){
+			wake_up_thread = list_entry(list_front(&sleep_list),struct thread, elem);
+			if(wake_up_thread->r_ticks <= r_ticks){
+				old_level = intr_disable();
+				wake_up_thread = list_entry(list_pop_front(&sleep_list),struct thread, elem);
+				thread_unblock(wake_up_thread);
+				intr_set_level(old_level);
+			}
 		}
 	}
 }
