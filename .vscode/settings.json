@@ -2,6 +2,10 @@
     "files.associations": {
         "thread.h": "c",
         "interrupt.h": "c",
-        "intrinsic.h": "c"
+        "intrinsic.h": "c",
+        "stdint.h": "c",
+        "vm.h": "c",
+        "list.h": "c",
+        "stddef.h": "c"
     }
 }
