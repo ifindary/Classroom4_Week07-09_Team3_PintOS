@@ -97,7 +97,7 @@ static uint64_t gdt[3] = {0, 0x00af9a000000ffff, 0x00cf92000000ffff};
 void thread_init(void)
 {
 	ASSERT(intr_get_level() == INTR_OFF);
-
+	
 	/* Reload the temporal gdt for the kernel
 	 * This gdt does not include the user context.
 	 * The kernel will rebuild the gdt with user context, in gdt_init (). */
@@ -339,27 +339,29 @@ void thread_sleep(int64_t ticks)
 list_less_func *list_less(const struct list_elem *a, const struct list_elem *b, void *aux){
 	struct thread *tmp_a = list_entry(a,struct thread, elem);
 	struct thread *tmp_b = list_entry(b,struct thread, elem);
+	
+	if (tmp_a->r_ticks < tmp_b->r_ticks){
+		return true;
+	}else{
+		return false;
+	}
 }
 
 void wake_up(int64_t r_ticks){
 	enum intr_level old_level;
 	struct thread *wake_up_thread; 
-	// sleep_list sort
-	list_sort(&sleep_list,list_less,NULL);
 
 	if(!list_empty(&sleep_list)){
-		// for(size_t i = 0; i <= list_size(&sleep_list);i++){
+		// sleep_list sort
+		list_sort(&sleep_list,list_less,NULL);
 		wake_up_thread = list_entry(list_front(&sleep_list),struct thread, elem);
 		if(wake_up_thread->r_ticks <= r_ticks){
 			old_level = intr_disable();
-			// wake_up_thread = list_entry(list_pop_front(&sleep_list),struct thread, elem);
-			wake_up_thread->status = THREAD_READY;
-			list_push_back(&ready_list, &wake_up_thread->elem);
-			schedule();
+			wake_up_thread = list_entry(list_pop_front(&sleep_list),struct thread, elem);
+			thread_unblock(wake_up_thread);
 			intr_set_level(old_level);
 		}
-		// }
-	} 
+	}
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
