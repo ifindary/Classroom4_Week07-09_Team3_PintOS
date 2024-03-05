@@ -153,9 +153,10 @@ timer_interrupt(struct intr_frame *args UNUSED)
 	 * update the global tick.
 	 */
 	int64_t now = timer_ticks();
-
+	// enum intr_level old_level;
+	// old_level = intr_disable();
 	wake_up(now);
-
+	// intr_set_level(old_level);
 	ticks++;
 	thread_tick();
 }
