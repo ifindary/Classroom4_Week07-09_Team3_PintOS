@@ -110,7 +110,6 @@ void timer_sleep(int64_t r_ticks)
 	 * while (timer_elapsed(start) < ticks)
 	 * thread_yield();
 	 */
-
 	// 현재 시작하는 Start 시점이, thread가 요청한 특정 시점 r_ticks를 경과했니?
 	if (timer_elapsed(start) < r_ticks)
 		// start 값이 invalid한 경우를 handling 해야 함!
@@ -153,9 +152,12 @@ timer_interrupt(struct intr_frame *args UNUSED)
 	 * move them to the ready list if necessary.
 	 * update the global tick.
 	 */
+	int64_t now = timer_ticks();
+
+	wake_up(now);
+
 	ticks++;
 	thread_tick();
-
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

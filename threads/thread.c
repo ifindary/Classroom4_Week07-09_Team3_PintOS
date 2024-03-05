@@ -48,8 +48,6 @@ static long long idle_ticks;   /* # of timer ticks spent idle. */
 static long long kernel_ticks; /* # of timer ticks in kernel threads. */
 static long long user_ticks;   /* # of timer ticks in user programs. */
 
-static long long global_tick;
-
 /* Scheduling. */
 #define TIME_SLICE 4		  /* # of timer ticks to give each thread. */
 static unsigned thread_ticks; /* # of timer ticks since last yield. */
@@ -112,7 +110,6 @@ void thread_init(void)
 	lock_init(&tid_lock);
 	list_init(&ready_list);
 	list_init(&destruction_req);
-	
 	list_init(&sleep_list);
 
 	/* Set up a thread structure for the running thread. */
@@ -120,7 +117,6 @@ void thread_init(void)
 	init_thread(initial_thread, "main", PRI_DEFAULT);
 	initial_thread->status = THREAD_RUNNING;
 	initial_thread->tid = allocate_tid();
-	initial_thread->r_ticks = timer_ticks(); // 로컬 tick 생성
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -323,10 +319,10 @@ void thread_sleep(int64_t ticks)
 	 * change the state of the caller thread to BLOCKED,
 	 * store the local tick to wake up,
 	 *
-	 * update the global tick if necessary,
+	 * update the global tick if necessary, 
 	 * and call schedule()
 	 */
-
+	
 	/* When you manipulate thread list, diable interrupt!! */
 	struct thread *curr = thread_current();
 	enum intr_level old_level;
@@ -340,9 +336,30 @@ void thread_sleep(int64_t ticks)
 	}
 }
 
-void wake_up(void){
-	struct list_elem * pop_list = list_pop_front(&sleep_list);
-	list_push_back(&ready_list,pop_list);
+list_less_func *list_less(const struct list_elem *a, const struct list_elem *b, void *aux){
+	struct thread *tmp_a = list_entry(a,struct thread, elem);
+	struct thread *tmp_b = list_entry(b,struct thread, elem);
+}
+
+void wake_up(int64_t r_ticks){
+	enum intr_level old_level;
+	struct thread *wake_up_thread; 
+	// sleep_list sort
+	list_sort(&sleep_list,list_less,NULL);
+
+	if(!list_empty(&sleep_list)){
+		// for(size_t i = 0; i <= list_size(&sleep_list);i++){
+		wake_up_thread = list_entry(list_front(&sleep_list),struct thread, elem);
+		if(wake_up_thread->r_ticks <= r_ticks){
+			old_level = intr_disable();
+			// wake_up_thread = list_entry(list_pop_front(&sleep_list),struct thread, elem);
+			wake_up_thread->status = THREAD_READY;
+			list_push_back(&ready_list, &wake_up_thread->elem);
+			schedule();
+			intr_set_level(old_level);
+		}
+		// }
+	} 
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
