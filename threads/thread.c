@@ -31,6 +31,9 @@ static struct list ready_list;
 // busy waiting 방식 대신 sleep / wake up 방식으로 구현하기 위해 sleep list 생성
 static struct list sleep_list;
 
+// priority 조정을 위한 wait list
+static struct list wait_list;
+
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -142,6 +145,7 @@ void thread_init(void)
 	list_init(&ready_list);
 	list_init(&destruction_req);
 	list_init(&sleep_list);
+	list_init(&wait_list);
 
 	/* Set up a thread structure for the running thread. */
 	initial_thread = running_thread();
@@ -212,42 +216,41 @@ void thread_print_stats(void)
 tid_t thread_create(const char *name, int priority,
 					thread_func *function, void *aux)
 {
-	struct thread *t;
-	struct thread *n;
+	struct thread *new_thread, *curr_thread;
 	tid_t tid;
 
 	ASSERT(function != NULL);
 
 	/* Allocate thread. */
-	t = palloc_get_page(PAL_ZERO);
-	if (t == NULL)
+	new_thread = palloc_get_page(PAL_ZERO);
+	if (new_thread == NULL)
 		return TID_ERROR;
 
 	/* Initialize thread. */
-	init_thread(t, name, priority);
-	tid = t->tid = allocate_tid();
+	init_thread(new_thread, name, priority);
+	tid = new_thread->tid = allocate_tid();
 
 	/* Call the kernel_thread if it scheduled.
 	 * Note) rdi is 1st argument, and rsi is 2nd argument. */
-	t->tf.rip = (uintptr_t)kernel_thread;
-	t->tf.R.rdi = (uint64_t)function;
-	t->tf.R.rsi = (uint64_t)aux;
-	t->tf.ds = SEL_KDSEG;
-	t->tf.es = SEL_KDSEG;
-	t->tf.ss = SEL_KDSEG;
-	t->tf.cs = SEL_KCSEG;
-	t->tf.eflags = FLAG_IF;
-	/* Add to run queue. */
-	thread_unblock(t);
-	n = thread_current();
-	if(t->priority > n->priority){
+	new_thread->tf.rip = (uintptr_t)kernel_thread;
+	new_thread->tf.R.rdi = (uint64_t)function;
+	new_thread->tf.R.rsi = (uint64_t)aux;
+	new_thread->tf.ds = SEL_KDSEG;
+	new_thread->tf.es = SEL_KDSEG;
+	new_thread->tf.ss = SEL_KDSEG;
+	new_thread->tf.cs = SEL_KCSEG;
+	new_thread->tf.eflags = FLAG_IF;
+
+	curr_thread = thread_current();
+
+	/* Add new_thread to ready_list */
+	thread_unblock(new_thread);
+
+	if (new_thread->priority > curr_thread->priority)
+	{
+		// Insert curr_thread to ready_list
 		thread_yield();
 	}
-	/* compare the priorities of the currently running thread
-	and the newly inserted one. Yield the CPU if the newly arriving thread 
-	has higher priority
-	현재 러닝 스레드와 새 스레드를 비교해라. 우선순위가 더 높은 스레드에게 CPU 할당
-	*/
 
 	return tid;
 }
@@ -415,18 +418,16 @@ void wake_up(int64_t now_ticks)
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority(int new_priority)
 {
-	// 현재 스레드의 우선순위 설정, ready_list 재조정
-	thread_current()->priority = new_priority;
-	struct thread *curr;
-	struct thread *front;
-	curr = thread_current();
-	curr->priority = new_priority;
-	front = list_entry(list_front(&ready_list),struct thread, elem);
+	struct thread *curr_thread, *ready_thread;
+	curr_thread = thread_current();
+	ready_thread = list_entry(list_front(&ready_list), struct thread, elem);
+	curr_thread->priority = new_priority;
 
-	if(front->priority > curr->priority){
+	if (ready_thread->priority > curr_thread->priority)
+	{
+		// Insert curr_thread to ready_list
 		thread_yield();
 	}
-	// list_sort(&ready_list,list_priority, NULL);
 }
 
 /* Returns the current thread's priority. */
