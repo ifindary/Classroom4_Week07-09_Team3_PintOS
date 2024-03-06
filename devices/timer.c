@@ -18,7 +18,7 @@
 #endif
 
 /* Number of timer ticks since OS booted. */
-static int64_t ticks; // global tick 
+static int64_t ticks; // global tick
 
 /* Number of loops per timer tick.
    Initialized by timer_calibrate(). */
@@ -114,7 +114,6 @@ void timer_sleep(int64_t r_ticks)
 	if (timer_elapsed(start) < r_ticks)
 		// start 값이 invalid한 경우를 handling 해야 함!
 		thread_sleep(start + r_ticks); // 현재 시점으로부터 r_ticks만큼 지날때까지 재우기
-
 }
 
 /* Suspends execution for approximately MS milliseconds. */

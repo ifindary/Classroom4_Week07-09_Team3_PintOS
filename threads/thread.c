@@ -97,7 +97,7 @@ static uint64_t gdt[3] = {0, 0x00af9a000000ffff, 0x00cf92000000ffff};
 void thread_init(void)
 {
 	ASSERT(intr_get_level() == INTR_OFF);
-	
+
 	/* Reload the temporal gdt for the kernel
 	 * This gdt does not include the user context.
 	 * The kernel will rebuild the gdt with user context, in gdt_init (). */
@@ -319,46 +319,72 @@ void thread_sleep(int64_t ticks)
 	 * change the state of the caller thread to BLOCKED,
 	 * store the local tick to wake up,
 	 *
-	 * update the global tick if necessary, 
+	 * update the global tick if necessary,
 	 * and call schedule()
 	 */
-	
+
 	/* When you manipulate thread list, diable interrupt!! */
 	struct thread *curr = thread_current();
 	enum intr_level old_level;
-	if(curr != idle_thread){
+	if (curr != idle_thread)
+	{
 		old_level = intr_disable();
 		curr->status = THREAD_BLOCKED;
-		curr->r_ticks = ticks;
+		curr->wakeup_ticks = ticks;
 		list_push_back(&sleep_list, &curr->elem);
 		schedule();
 		intr_set_level(old_level);
 	}
 }
 
-list_less_func *list_less(const struct list_elem *a, const struct list_elem *b, void *aux){
-	struct thread *tmp_a = list_entry(a,struct thread, elem);
-	struct thread *tmp_b = list_entry(b,struct thread, elem);
-	
-	if (tmp_a->r_ticks < tmp_b->r_ticks){
+list_less_func *list_less(const struct list_elem *a, const struct list_elem *b, void *aux)
+{
+	struct thread *tmp_a = list_entry(a, struct thread, elem);
+	struct thread *tmp_b = list_entry(b, struct thread, elem);
+
+	if (tmp_a->wakeup_ticks < tmp_b->wakeup_ticks)
+	{
+
 		return true;
-	}else{
+	}
+	else
+	{
 		return false;
 	}
 }
 
-void wake_up(int64_t r_ticks){
-	enum intr_level old_level;
-	struct thread *wake_up_thread; 
+list_less_func *list_priority(const struct list_elem *a, const struct list_elem *b, void *aux)
+{
+	struct thread *tmp_a = list_entry(a, struct thread, elem);
+	struct thread *tmp_b = list_entry(b, struct thread, elem);
 
-	if(!list_empty(&sleep_list)){
+	if (tmp_a->priority > tmp_b->priority)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+void wake_up(int64_t now_ticks)
+{
+	enum intr_level old_level;
+	struct thread *wake_up_thread;
+
+	if (!list_empty(&sleep_list))
+	{
 		// sleep_list sort
-		list_sort(&sleep_list,list_less,NULL);
-		for(size_t i = 0; i < list_size(&sleep_list); i++){
-			wake_up_thread = list_entry(list_front(&sleep_list),struct thread, elem);
-			if(wake_up_thread->r_ticks <= r_ticks){
+		list_sort(&sleep_list, list_less, NULL);
+		list_sort(&sleep_list, list_priority, NULL);
+		for (size_t i = 0; i < list_size(&sleep_list); i++)
+		{
+			wake_up_thread = list_entry(list_front(&sleep_list), struct thread, elem);
+			if (wake_up_thread->wakeup_ticks <= now_ticks)
+			{
 				old_level = intr_disable();
-				wake_up_thread = list_entry(list_pop_front(&sleep_list),struct thread, elem);
+				wake_up_thread = list_entry(list_pop_front(&sleep_list), struct thread, elem);
 				thread_unblock(wake_up_thread);
 				intr_set_level(old_level);
 			}
