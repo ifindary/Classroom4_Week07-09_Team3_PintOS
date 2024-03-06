@@ -213,6 +213,7 @@ tid_t thread_create(const char *name, int priority,
 					thread_func *function, void *aux)
 {
 	struct thread *t;
+	struct thread *n;
 	tid_t tid;
 
 	ASSERT(function != NULL);
@@ -236,9 +237,17 @@ tid_t thread_create(const char *name, int priority,
 	t->tf.ss = SEL_KDSEG;
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
-
 	/* Add to run queue. */
 	thread_unblock(t);
+	n = thread_current();
+	if(t->priority > n->priority){
+		thread_yield();
+	}
+	/* compare the priorities of the currently running thread
+	and the newly inserted one. Yield the CPU if the newly arriving thread 
+	has higher priority
+	현재 러닝 스레드와 새 스레드를 비교해라. 우선순위가 더 높은 스레드에게 CPU 할당
+	*/
 
 	return tid;
 }
@@ -267,6 +276,7 @@ void thread_block(void)
    update other data. */
 void thread_unblock(struct thread *t)
 {
+	//스레드가 unblocked 일 때, 우선순위 순서로 ready_list에 넣어라.
 	enum intr_level old_level;
 	ASSERT(is_thread(t));
 	old_level = intr_disable();
@@ -331,6 +341,7 @@ void thread_exit(void)
    may be scheduled again immediately at the scheduler's whim. */
 void thread_yield(void)
 {
+	// 현재 스레드를 cpu에 양보하고 우선 순위 순서로 ready_list에 넣어라.
 	enum intr_level old_level;
 	ASSERT(!intr_context());
 	old_level = intr_disable();
@@ -404,7 +415,18 @@ void wake_up(int64_t now_ticks)
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority(int new_priority)
 {
+	// 현재 스레드의 우선순위 설정, ready_list 재조정
 	thread_current()->priority = new_priority;
+	struct thread *curr;
+	struct thread *front;
+	curr = thread_current();
+	curr->priority = new_priority;
+	front = list_entry(list_front(&ready_list),struct thread, elem);
+
+	if(front->priority > curr->priority){
+		thread_yield();
+	}
+	// list_sort(&ready_list,list_priority, NULL);
 }
 
 /* Returns the current thread's priority. */
