@@ -52,9 +52,6 @@ test_sleep(int thread_cnt, int iterations)
   test.iterations = iterations;
   test.output_pos = output;
 
-  printf("========[SIMUL] test_sleep===========\n");
-  printf("==test struct data by time_ticks() %d,  %d,  %d", test.start, test.iterations, test.output_pos);
-
   /* Start threads. */
   ASSERT(output != NULL);
   for (i = 0; i < thread_cnt; i++)
@@ -66,7 +63,6 @@ test_sleep(int thread_cnt, int iterations)
 
   /* Wait long enough for all the threads to finish. */
   timer_sleep(100 + iterations * 10 + 100);
-  printf("========[SIMUL] after timer sleep===========\n");
 
   /* Print completion order. */
   msg("iteration 0, thread 0: woke up after %d ticks", output[0]);

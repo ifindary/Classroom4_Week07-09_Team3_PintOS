@@ -81,6 +81,37 @@ static tid_t allocate_tid(void);
 // setup temporal gdt first.
 static uint64_t gdt[3] = {0, 0x00af9a000000ffff, 0x00cf92000000ffff};
 
+list_less_func *list_less(const struct list_elem *a, const struct list_elem *b, void *aux)
+{
+	struct thread *tmp_a = list_entry(a, struct thread, elem);
+	struct thread *tmp_b = list_entry(b, struct thread, elem);
+
+	if (tmp_a->wakeup_ticks < tmp_b->wakeup_ticks)
+	{
+
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+list_less_func *list_priority(const struct list_elem *a, const struct list_elem *b, void *aux)
+{
+	struct thread *tmp_a = list_entry(a, struct thread, elem);
+	struct thread *tmp_b = list_entry(b, struct thread, elem);
+
+	if (tmp_a->priority > tmp_b->priority)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -237,13 +268,13 @@ void thread_block(void)
 void thread_unblock(struct thread *t)
 {
 	enum intr_level old_level;
-
 	ASSERT(is_thread(t));
-
 	old_level = intr_disable();
 	ASSERT(t->status == THREAD_BLOCKED);
-	list_push_back(&ready_list, &t->elem);
+
+	list_insert_ordered(&ready_list, &t->elem, list_priority, NULL);
 	t->status = THREAD_READY;
+
 	intr_set_level(old_level);
 }
 
@@ -300,14 +331,16 @@ void thread_exit(void)
    may be scheduled again immediately at the scheduler's whim. */
 void thread_yield(void)
 {
-	struct thread *curr = thread_current();
 	enum intr_level old_level;
-
 	ASSERT(!intr_context());
-
 	old_level = intr_disable();
+
+	struct thread *curr = thread_current();
 	if (curr != idle_thread)
-		list_push_back(&ready_list, &curr->elem);
+	{
+		list_insert_ordered(&ready_list, &curr->elem, list_less, NULL);
+		list_sort(&ready_list, list_priority, NULL);
+	}
 	do_schedule(THREAD_READY);
 	intr_set_level(old_level);
 }
@@ -329,42 +362,14 @@ void thread_sleep(int64_t ticks)
 	if (curr != idle_thread)
 	{
 		old_level = intr_disable();
+
 		curr->status = THREAD_BLOCKED;
 		curr->wakeup_ticks = ticks;
-		list_push_back(&sleep_list, &curr->elem);
+		list_insert_ordered(&sleep_list, &curr->elem, list_less, NULL);
+
 		schedule();
+
 		intr_set_level(old_level);
-	}
-}
-
-list_less_func *list_less(const struct list_elem *a, const struct list_elem *b, void *aux)
-{
-	struct thread *tmp_a = list_entry(a, struct thread, elem);
-	struct thread *tmp_b = list_entry(b, struct thread, elem);
-
-	if (tmp_a->wakeup_ticks < tmp_b->wakeup_ticks)
-	{
-
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-}
-
-list_less_func *list_priority(const struct list_elem *a, const struct list_elem *b, void *aux)
-{
-	struct thread *tmp_a = list_entry(a, struct thread, elem);
-	struct thread *tmp_b = list_entry(b, struct thread, elem);
-
-	if (tmp_a->priority > tmp_b->priority)
-	{
-		return true;
-	}
-	else
-	{
-		return false;
 	}
 }
 
@@ -373,22 +378,26 @@ void wake_up(int64_t now_ticks)
 	enum intr_level old_level;
 	struct thread *wake_up_thread;
 
-	if (!list_empty(&sleep_list))
+	while (!list_empty(&sleep_list))
 	{
-		// sleep_list sort
+		old_level = intr_disable();
+
+		// sleep_list sort by ticks
 		list_sort(&sleep_list, list_less, NULL);
-		list_sort(&sleep_list, list_priority, NULL);
-		for (size_t i = 0; i < list_size(&sleep_list); i++)
+
+		wake_up_thread = list_entry(list_front(&sleep_list), struct thread, elem);
+
+		if (wake_up_thread->wakeup_ticks > now_ticks)
 		{
-			wake_up_thread = list_entry(list_front(&sleep_list), struct thread, elem);
-			if (wake_up_thread->wakeup_ticks <= now_ticks)
-			{
-				old_level = intr_disable();
-				wake_up_thread = list_entry(list_pop_front(&sleep_list), struct thread, elem);
-				thread_unblock(wake_up_thread);
-				intr_set_level(old_level);
-			}
+			break;
 		}
+		else
+		{
+			wake_up_thread = list_entry(list_pop_front(&sleep_list), struct thread, elem);
+			thread_unblock(wake_up_thread);
+		}
+
+		intr_set_level(old_level);
 	}
 }
 
