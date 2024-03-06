@@ -330,7 +330,7 @@ void thread_sleep(int64_t ticks)
 	{
 		old_level = intr_disable();
 		curr->status = THREAD_BLOCKED;
-		curr->r_ticks = ticks;
+		curr->wakeup_ticks = ticks;
 		list_push_back(&sleep_list, &curr->elem);
 		schedule();
 		intr_set_level(old_level);
@@ -342,7 +342,23 @@ list_less_func *list_less(const struct list_elem *a, const struct list_elem *b, 
 	struct thread *tmp_a = list_entry(a, struct thread, elem);
 	struct thread *tmp_b = list_entry(b, struct thread, elem);
 
-	if (tmp_a->r_ticks < tmp_b->r_ticks)
+	if (tmp_a->wakeup_ticks < tmp_b->wakeup_ticks)
+	{
+
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+list_less_func *list_priority(const struct list_elem *a, const struct list_elem *b, void *aux)
+{
+	struct thread *tmp_a = list_entry(a, struct thread, elem);
+	struct thread *tmp_b = list_entry(b, struct thread, elem);
+
+	if (tmp_a->priority > tmp_b->priority)
 	{
 		return true;
 	}
@@ -352,7 +368,7 @@ list_less_func *list_less(const struct list_elem *a, const struct list_elem *b, 
 	}
 }
 
-void wake_up(int64_t r_ticks)
+void wake_up(int64_t now_ticks)
 {
 	enum intr_level old_level;
 	struct thread *wake_up_thread;
@@ -361,10 +377,11 @@ void wake_up(int64_t r_ticks)
 	{
 		// sleep_list sort
 		list_sort(&sleep_list, list_less, NULL);
+		list_sort(&sleep_list, list_priority, NULL);
 		for (size_t i = 0; i < list_size(&sleep_list); i++)
 		{
 			wake_up_thread = list_entry(list_front(&sleep_list), struct thread, elem);
-			if (wake_up_thread->r_ticks <= r_ticks)
+			if (wake_up_thread->wakeup_ticks <= now_ticks)
 			{
 				old_level = intr_disable();
 				wake_up_thread = list_entry(list_pop_front(&sleep_list), struct thread, elem);
