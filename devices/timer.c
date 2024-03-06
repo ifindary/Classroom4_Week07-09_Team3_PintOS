@@ -18,7 +18,7 @@
 #endif
 
 /* Number of timer ticks since OS booted. */
-static int64_t ticks;
+static int64_t ticks; // global tick
 
 /* Number of loops per timer tick.
    Initialized by timer_calibrate(). */
@@ -99,13 +99,9 @@ timer_elapsed(int64_t then)
 }
 
 /* Suspends execution for approximately TICKS timer ticks. */
-void timer_sleep(int64_t ticks)
+void timer_sleep(int64_t r_ticks)
 {
-	printf("========[TIMER] 1 in timer_sleep()===========\n");
-
 	int64_t start = timer_ticks();
-	printf("========[TIMER] 2 after timer_ticks ===========\n");
-	printf("start ticks:: %d\n", start);
 
 	/**
 	 * 원래 코드
@@ -114,19 +110,10 @@ void timer_sleep(int64_t ticks)
 	 * while (timer_elapsed(start) < ticks)
 	 * thread_yield();
 	 */
-
-	// 현재 시작하는 Start 시점이, thread가 요청한 특정 시점 ticks를 경과했니?
-	if (timer_elapsed(start) < ticks)
-	{
-		printf("========[TIMER] 3 after timer_elapsed ===========\n");
+	// 현재 시작하는 Start 시점이, thread가 요청한 특정 시점 r_ticks를 경과했니?
+	if (timer_elapsed(start) < r_ticks)
 		// start 값이 invalid한 경우를 handling 해야 함!
-		thread_sleep(start + ticks); // 현재 시점으로부터 ticks만큼 지날때까지 재우기
-		printf("========[TIMER] 4 after thread_sleep ===========\n");
-	}
-
-	// **** r_ticks 만약 지났거나, 지금 당장이라면? 어케 해줘야 하지?? **** //
-	// thread_yield();
-	printf("========[TIMER] 5 after thread_yield ===========\n");
+		thread_sleep(start + r_ticks); // 현재 시점으로부터 r_ticks만큼 지날때까지 재우기
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -165,27 +152,12 @@ timer_interrupt(struct intr_frame *args UNUSED)
 	 * update the global tick.
 	 */
 	int64_t now = timer_ticks();
-
-	enum intr_level old_level;
-	// ASSERT(!intr_context());
-	old_level = intr_disable();
-
-	// sleep_list에서 깨울 애들 찾기
-	// # case1. unsorted list
-	// for(sleep_list->next 없을때 까지)
-	thread_check_and_awake(now);
-
-	// # case2. sorted list
-	// for(; sleep_list->wakeup_ticks <= 현재시간; curr = curr->next)
-
-	/** if(sleep_list -> wakeup_ticks <= 현재시간){
-	 * thread_awake();
-	 * } */
-
+	// enum intr_level old_level;
+	// old_level = intr_disable();
+	wake_up(now);
+	// intr_set_level(old_level);
 	ticks++;
 	thread_tick();
-
-	intr_set_level(old_level);
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
