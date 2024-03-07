@@ -104,7 +104,6 @@ list_less_func *list_priority(const struct list_elem *a, const struct list_elem 
 {
 	struct thread *tmp_a = list_entry(a, struct thread, elem);
 	struct thread *tmp_b = list_entry(b, struct thread, elem);
-
 	if (tmp_a->priority > tmp_b->priority)
 	{
 		return true;
@@ -284,6 +283,11 @@ void thread_unblock(struct thread *t)
 	old_level = intr_disable();
 	ASSERT(t->status == THREAD_BLOCKED);
 
+	if (!list_empty(&ready_list))
+	{
+		list_sort(&ready_list, list_priority, NULL);
+	}
+
 	list_insert_ordered(&ready_list, &t->elem, list_priority, NULL);
 	t->status = THREAD_READY;
 
@@ -418,13 +422,18 @@ void thread_set_priority(int new_priority)
 {
 	struct thread *curr_thread, *ready_thread;
 	curr_thread = thread_current();
-	ready_thread = list_entry(list_front(&ready_list), struct thread, elem);
+
 	curr_thread->priority = new_priority;
 
-	if (ready_thread->priority > curr_thread->priority)
+	if (!list_empty(&ready_list))
 	{
-		// Insert curr_thread to ready_list
-		thread_yield();
+		ready_thread = list_entry(list_front(&ready_list), struct thread, elem);
+
+		if (ready_thread->priority > curr_thread->priority)
+		{
+			// Insert curr_thread to ready_list
+			thread_yield();
+		}
 	}
 }
 
