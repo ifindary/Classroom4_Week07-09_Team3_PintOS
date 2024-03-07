@@ -422,6 +422,7 @@ void wake_up(int64_t now_ticks)
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority(int new_priority)
 {
+	// 우선순위 기부에 맞춰 우선순위 세팅하기
 	struct thread *curr_thread, *ready_thread;
 	curr_thread = thread_current();
 
@@ -537,6 +538,11 @@ init_thread(struct thread *t, const char *name, int priority)
 	t->tf.rsp = (uint64_t)t + PGSIZE - sizeof(void *);
 	t->priority = priority;
 	t->magic = THREAD_MAGIC;
+	// lock_acqurie? / init structure for priority donation. 
+	// t-> donated_priority =PRI_MIN;
+	// t->donations=NULL;
+	// t->wait_on_lock=NULL;
+	// t->d_elem = NULL;
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should

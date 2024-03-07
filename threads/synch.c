@@ -32,21 +32,6 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
-list_less_func *list_priority(const struct list_elem *a, const struct list_elem *b, void *aux)
-{
-	struct thread *tmp_a = list_entry(a, struct thread, elem);
-	struct thread *tmp_b = list_entry(b, struct thread, elem);
-
-	if (tmp_a->priority > tmp_b->priority)
-	{
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-}
-
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
    manipulating it:
@@ -210,9 +195,15 @@ void lock_acquire(struct lock *lock)
 	ASSERT(lock != NULL);
 	ASSERT(!intr_context());
 	ASSERT(!lock_held_by_current_thread(lock));
-
-	sema_down(&lock->semaphore);
-	lock->holder = thread_current();
+	// lock을 요청하는 함수? -> lock이 안걸려있다면? 바로 요청한 스레드 lock!
+	// lock이 걸려있다면? 우선순위대로 실행(우선순위 역전이 일어날 수 있으므로 우선순위 기부를 해준다.)
+	// semaphore list 함수 순회를 하면서 각 우선순위 파악 후 우선순위 기부?
+	if(lock_try_acquire(&lock)){
+		sema_down(&lock->semaphore);
+		lock->holder = thread_current();
+	}else{
+		
+	}
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -244,7 +235,8 @@ void lock_release(struct lock *lock)
 {
 	ASSERT(lock != NULL);
 	ASSERT(lock_held_by_current_thread(lock));
-
+	// lock을 해제해주는 함수
+	// lock을 해제하면서 기부 리스트에 있는 스레드를 삭제하고 우선순위 설정하기
 	lock->holder = NULL;
 	sema_up(&lock->semaphore);
 }
