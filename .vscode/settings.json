@@ -6,6 +6,7 @@
         "stdint.h": "c",
         "vm.h": "c",
         "list.h": "c",
-        "stddef.h": "c"
+        "stddef.h": "c",
+        "synch.h": "c"
     }
 }

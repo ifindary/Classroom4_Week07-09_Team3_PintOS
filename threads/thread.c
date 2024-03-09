@@ -423,21 +423,27 @@ void wake_up(int64_t now_ticks)
 void thread_set_priority(int new_priority)
 {
 	// 우선순위 기부에 맞춰 우선순위 세팅하기
-	struct thread *curr_thread, *ready_thread;
-	curr_thread = thread_current();
+	// struct thread *curr_thread, *ready_thread;
+	// curr_thread = thread_current();
 
-	curr_thread->priority = new_priority;
+	// curr_thread->priority = new_priority;
 
-	if (!list_empty(&ready_list))
-	{
-		ready_thread = list_entry(list_front(&ready_list), struct thread, elem);
+	// if (!list_empty(&ready_list))
+	// {
+	// 	ready_thread = list_entry(list_front(&ready_list), struct thread, elem);
 
-		if (ready_thread->priority > curr_thread->priority)
-		{
-			// Insert curr_thread to ready_list
-			thread_yield();
-		}
+	// 	if (ready_thread->priority > curr_thread->priority)
+	// 	{
+	// 		// Insert curr_thread to ready_list
+	// 		thread_yield();
+	// 	}
+	// }
+	thread_current()->own_priority = new_priority;
+	if (list_empty(&thread_current()->donations)) {
+		thread_current()->priority = new_priority;
 	}
+	if (!list_empty(&ready_list) && list_entry(list_front(&ready_list), struct thread, elem)->priority > new_priority)
+		thread_yield();
 }
 
 /* Returns the current thread's priority. */
@@ -537,12 +543,32 @@ init_thread(struct thread *t, const char *name, int priority)
 	strlcpy(t->name, name, sizeof t->name);
 	t->tf.rsp = (uint64_t)t + PGSIZE - sizeof(void *);
 	t->priority = priority;
+	t->own_priority = priority; // 원래 우선 순위 초기화
 	t->magic = THREAD_MAGIC;
-	// lock_acqurie? / init structure for priority donation. 
-	// t-> donated_priority =PRI_MIN;
-	// t->donations=NULL;
-	// t->wait_on_lock=NULL;
-	// t->d_elem = NULL;
+	list_init(&t->donations); // thread의 donation list 생성
+
+
+	// 아래 필요없음
+	// init structure for priority donation.  
+	// 각 스레드마다 우선순위 기부가 init_thread에서 이루어지게 된다.
+	// 첫 번째 스레드는 lock_acquire로 넘어가게됨.
+	// 새 스레드부터 우선 순위 비교를 하고 새 스레드의
+	// 우선 순위가 기존 스레드의 우선 순위보다 크면 우선순위 기부를 하자.
+
+	// 우선 순위 기부 순서?
+	// 1. prev thread 우선순위 new thread 우선순위로 변경
+	// 2. wait_on_lock을 lock을 가르킴.
+	// 3. prev의 donations에 new thread의 d_elem 추가.
+
+	// struct thread *prev;
+	// if(!list_empty(&ready_list)){
+	// 	prev = list_back(&ready_list);
+	// 	if(t->priority > prev->priority){
+	// 		prev->priority = t->priority;
+	// 		list_insert(&prev->donations,&t->d_elem);
+	// 	}
+	// }
+
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
