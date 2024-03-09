@@ -97,6 +97,12 @@ struct thread
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem; /* List element. */
 
+	// donation
+	int own_priority; // 기부 받은 현재 우선순위
+	struct list donations; // 기부자들을 저장하는 리스트
+	struct lock *wait_on_lock; // lock that it waits for 
+	struct list_elem d_elem; // 기부 요소
+
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4; /* Page map level 4 */
