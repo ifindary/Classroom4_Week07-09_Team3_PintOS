@@ -199,8 +199,7 @@ void lock_acquire(struct lock *lock)
 	// lock을 요청하는 함수? -> lock이 안걸려있다면? 바로 요청한 스레드 lock!
 	// lock이 걸려있다면? 우선순위대로 실행(우선순위 역전이 일어날 수 있으므로 우선순위 기부를 해준다.)
 	// semaphore list 함수 순회를 하면서 각 우선순위 파악 후 우선순위 기부?
-	// sema_down(&lock->semaphore);
-	// lock->holder = thread_current();
+
 	struct thread *curr_thread = thread_current();
 
 	if (lock->holder != NULL){
