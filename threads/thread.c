@@ -438,13 +438,14 @@ void thread_set_priority(int new_priority)
 	// 		thread_yield();
 	// 	}
 	// }
+	// 우선순위가 새로 세팅되기 때문에 원래 값 변경 
 	thread_current()->own_priority = new_priority;
-	if (list_empty(&thread_current()->donations)) {
-		thread_current()->priority = new_priority;
+	if (list_empty(&thread_current()->donations)) { 
+		thread_current()->priority = new_priority; // 기부받을 우선순위 값이 없으므로 현재 스레드의 우선순위 값 변경
 	}
 	if (!list_empty(&ready_list) && list_entry(list_front(&ready_list), struct thread, elem)->priority > new_priority)
-		thread_yield();
-}
+		thread_yield(); // 실행할 준비가 되어 스레드 실행
+} 
 
 /* Returns the current thread's priority. */
 int thread_get_priority(void)
