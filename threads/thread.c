@@ -345,6 +345,8 @@ void thread_exit(void)
 
 /* Yields the CPU.  The current thread is not put to sleep and
    may be scheduled again immediately at the scheduler's whim. */
+/* CPU를 양보합니다. 현재 스레드는 슬립 상태로 전환되지 않으며,
+스케줄러의 재량에 따라 즉시 다시 스케줄될 수 있습니다. */
 void thread_yield(void)
 {
 	enum intr_level old_level;
@@ -354,9 +356,12 @@ void thread_yield(void)
 	struct thread *curr = thread_current();
 	if (curr != idle_thread)
 	{
+		// 우선순위대로 정렬된 상태에서 현재 스레드를 삽입
 		list_insert_ordered(&ready_list, &curr->elem, list_less, NULL);
+		// ready_list를 우선순위에 따라 다시 정렬
 		list_sort(&ready_list, list_priority, NULL);
 	}
+	// 스케줄러를 호출하여 현재 스레드를 준비 상태로 설정
 	do_schedule(THREAD_READY);
 	intr_set_level(old_level);
 }
@@ -420,21 +425,28 @@ void wake_up(int64_t now_ticks)
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority(int new_priority)
 {
-	struct thread *curr_thread, *ready_thread;
-	curr_thread = thread_current();
+	// struct thread *curr_thread, *ready_thread;
+	// curr_thread = thread_current();
 
-	curr_thread->priority = new_priority;
+	// curr_thread->priority = new_priority;
 
-	if (!list_empty(&ready_list))
-	{
-		ready_thread = list_entry(list_front(&ready_list), struct thread, elem);
+	// if (!list_empty(&ready_list))
+	// {
+	// 	ready_thread = list_entry(list_front(&ready_list), struct thread, elem);
 
-		if (ready_thread->priority > curr_thread->priority)
-		{
-			// Insert curr_thread to ready_list
-			thread_yield();
-		}
+	// 	if (ready_thread->priority > curr_thread->priority)
+	// 	{
+	// 		// Insert curr_thread to ready_list
+	// 		thread_yield();
+	// 	}
+	// }
+
+	thread_current()->given_priority = new_priority;
+	if (list_empty(&thread_current()->donations)) {
+		thread_current()->priority = new_priority;
 	}
+	if (!list_empty(&ready_list) && list_entry(list_front(&ready_list), struct thread, elem)->priority > new_priority)
+		thread_yield();
 }
 
 /* Returns the current thread's priority. */
@@ -522,8 +534,7 @@ kernel_thread(thread_func *function, void *aux)
 
 /* Does basic initialization of T as a blocked thread named
    NAME. */
-static void
-init_thread(struct thread *t, const char *name, int priority)
+static void init_thread(struct thread *t, const char *name, int priority)
 {
 	ASSERT(t != NULL);
 	ASSERT(PRI_MIN <= priority && priority <= PRI_MAX);
@@ -535,6 +546,11 @@ init_thread(struct thread *t, const char *name, int priority)
 	t->tf.rsp = (uint64_t)t + PGSIZE - sizeof(void *);
 	t->priority = priority;
 	t->magic = THREAD_MAGIC;
+
+	// lock_acqurie? / init structure for priority donation. 
+	t->given_priority = priority;
+	t->wait_on_lock = NULL;
+	list_init(&t->donations);
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
