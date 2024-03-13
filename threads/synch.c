@@ -119,8 +119,9 @@ void sema_up(struct semaphore *sema)
 								  struct thread, elem));
 	}
 	sema->value++;
+	thread_try_yield();
 	intr_set_level(old_level);
-	thread_yield();
+	// thread_yield();
 }
 
 static void sema_test_helper(void *sema_);
@@ -260,7 +261,7 @@ void lock_release(struct lock *lock)
 			p = list_entry(delete_elem, struct thread, d_elem);
 			if(p->wait_on_lock == lock){
 				list_remove(delete_elem);
-				t->wait_on_lock = NULL;
+				// t->wait_on_lock = NULL;
 			}
 			delete_elem = delete_elem->next;
 		}

@@ -18,6 +18,7 @@
 #include "threads/mmu.h"
 #include "threads/vaddr.h"
 #include "intrinsic.h"
+#include "../include/lib/string.h" // strtok_r()
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -178,7 +179,6 @@ process_exec (void *f_name) {
 
 	/* And then load the binary */
 	success = load (file_name, &_if);
-
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
 	if (!success)
@@ -416,6 +416,13 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	/* TODO: Your code goes here.
 	 * TODO: Implement argument passing (see project2/argument_passing.html). */
+	char *s = file_name;
+	char *token, *save_ptr;
+
+	for (token = strtok_r (s, " ", &save_ptr); token != NULL; token = strtok_r (NULL, " ", &save_ptr)){
+		printf ("'%s'\n", token);	
+		
+	}
 
 	success = true;
 
