@@ -7,6 +7,15 @@
         "vm.h": "c",
         "list.h": "c",
         "stddef.h": "c",
-        "synch.h": "c"
-    }
+        "synch.h": "c",
+        "stdlib.h": "c",
+        "string.h": "c",
+        "cstdlib": "c",
+        "*.inc": "c",
+        "atomic": "c",
+        "process.h": "c",
+        "loader.h": "c",
+        "flags.h": "c"
+    },
+    "C_Cpp.errorSquiggles": "disabled"
 }
