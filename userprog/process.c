@@ -18,6 +18,7 @@
 #include "threads/mmu.h"
 #include "threads/vaddr.h"
 #include "intrinsic.h"
+#include "../include/lib/string.h" // strtok_r()
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -49,6 +50,9 @@ process_create_initd (const char *file_name) {
 	if (fn_copy == NULL)
 		return TID_ERROR;
 	strlcpy (fn_copy, file_name, PGSIZE);
+	// strtok_r()
+	char *save_ptr;
+	strtok_r(file_name," ",&save_ptr);
 
 	/* Create a new thread to execute FILE_NAME. */
 	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
@@ -194,7 +198,6 @@ int
 process_exec (void *f_name) {
 	char *file_name = f_name;
 	bool success;
-
 	/* We cannot use the intr_frame in the thread structure.
 	 * This is because when current thread rescheduled,
 	 * it stores the execution information to the member. */
@@ -206,22 +209,44 @@ process_exec (void *f_name) {
 	/* We first kill the current context */
 	process_cleanup ();
 
-	int argc = 0;
-	char *argv[64];
-	char *ret_ptr, *next_ptr;
+	// char *argv[64];
+	// int argc = 0;
 
-	// argument를 파싱, 그리고 argv[] 넣기
-	ret_ptr = strtok_r(file_name, " ", &next_ptr);
-	while (ret_ptr){
-		argv[argc++] = strtok_r(NULL, " ", &next_ptr);
-	}
+	// char *token, *save_ptr;
+	// for (token = strtok_r (file_name, " ", &save_ptr); token != NULL; token = strtok_r (NULL, " ", &save_ptr)){
+	// 	argv[argc] = token;
+	// 	argc++;
+	// }
+	char *argv[64]; // argument 배열
+    int argc = 0;    // argument 개수
 
+    char *token;    
+    char *save_ptr; // 분리된 문자열 중 남는 부분의 시작주소
+    token = strtok_r(file_name, " ", &save_ptr);
+    while (token != NULL)
+    {
+        argv[argc] = token;
+        token = strtok_r(NULL, " ", &save_ptr);
+        argc++;
+    }
 	/* And then load the binary */
 	success = load (file_name, &_if);
 
 	/* If load failed, quit. */
-	if (!success)
+	if (!success){
+		palloc_free_page (file_name);
 		return -1;
+	}
+
+    void **rspp = &_if.rsp;
+	argument_stack(argv, argc, rspp);
+
+	_if.R.rdi = argc;
+	_if.R.rsi = (uint64_t)*rspp + sizeof(void *);
+
+	// hex_dump(_if.rsp, _if.rsp, USER_STACK - (uint64_t)*rspp, true);
+
+    palloc_free_page(file_name);
 
 	argument_stack_for_user(argv, argc, &_if);
 
@@ -234,6 +259,42 @@ process_exec (void *f_name) {
 	NOT_REACHED ();
 }
 
+void argument_stack(char **argv, int argc, void **rsp)
+{
+	for (int i = argc - 1; i >= 0; i--)
+    {
+        int argv_len = strlen(argv[i]);
+        for (int j = argv_len; j >= 0; j--)
+        {
+            char argv_char = argv[i][j];
+            (*rsp)--;
+            **(char **)rsp = argv_char; // 1 byte
+        }
+        argv[i] = *(char **)rsp; // 배열에 rsp 주소 넣기
+    }
+
+    // Word-align padding
+    int pad = (int)*rsp % 8;
+    for (int k = 0; k < pad; k++)
+    {
+        (*rsp)--;
+        **(uint8_t **)rsp = 0;
+    }
+
+    // Pointers to the argument strings
+    (*rsp) -= 8;
+    **(char ***)rsp = 0;
+
+    for (int i = argc - 1; i >= 0; i--)
+    {
+        (*rsp) -= 8;
+        **(char ***)rsp = argv[i];
+    }
+
+    // Return address
+    (*rsp) -= 8;
+    **(void ***)rsp = 0;
+}
 
 /* Waits for thread TID to die and returns its exit status.  If
  * it was terminated by the kernel (i.e. killed due to an
@@ -249,11 +310,17 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
+<<<<<<< HEAD
 	
 	// 반복시켜 주려고 임시로 넣는 코드
 	for(int i = 0; i < 100000000; i++){
     }
 
+=======
+	for(int i = 0; i < 1000000000; i++){
+
+	}
+>>>>>>> e9a829ea5c41d87cdf5aeeef86251f262209e052
 	return -1;
 }
 
@@ -467,8 +534,21 @@ load (const char *file_name, struct intr_frame *if_) {
 	/* TODO: Your code goes here.
 	 * TODO: Implement argument passing (see project2/argument_passing.html). */
 
-	success = true;
+	// char *s = file_name;
+	// char *token, *save_ptr;
+	// char *argv[8];
+	// int argc = 0;
 
+	// for (token = strtok_r (s, " ", &save_ptr); token != NULL; token = strtok_r (NULL, " ", &save_ptr)){
+	// 	argv[argc] = token;
+	// 	argc++;
+	// }
+
+	// if_->R.rsi = argv;
+	// if_->R.rdi = argc;
+
+	success = true;
+	// hex_dump(if_->rsp, if_->rsp, USER_STACK - if_->rsp, true);
 done:
 	/* We arrive here whether the load is successful or not. */
 	file_close (file);

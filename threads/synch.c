@@ -260,7 +260,7 @@ void lock_release(struct lock *lock)
 			p = list_entry(delete_elem, struct thread, d_elem);
 			if(p->wait_on_lock == lock){
 				list_remove(delete_elem);
-				t->wait_on_lock = NULL;
+				// t->wait_on_lock = NULL;
 			}
 			delete_elem = delete_elem->next;
 		}

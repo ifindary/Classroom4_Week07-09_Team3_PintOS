@@ -1,5 +1,7 @@
 #ifndef THREADS_THREAD_H
 #define THREADS_THREAD_H
+#define FDT_PAGES 2
+#define FDT_COUNT_LIMIT 128
 
 #include <debug.h>
 #include <list.h>
@@ -104,6 +106,11 @@ struct thread
 	struct lock *wait_on_lock; // lock that it waits for 
 	struct list_elem d_elem; // 기부 요소
 
+	// file descriptor table 
+	struct file **fdt;
+	int next_fd;
+	
+
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4; /* Page map level 4 */
@@ -143,6 +150,7 @@ const char *thread_name(void);
 
 void thread_exit(void) NO_RETURN;
 void thread_yield(void);
+void thread_try_yield(void);
 void thread_sleep(int64_t);
 void wake_up(int64_t r_ticks);
 
