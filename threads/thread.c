@@ -241,6 +241,9 @@ tid_t thread_create(const char *name, int priority,
 	new_thread->tf.eflags = FLAG_IF;
 
 	curr_thread = thread_current();
+	new_thread->fdt = palloc_get_multiple(PAL_ZERO, FDT_PAGES); 
+    if (new_thread->fdt == NULL) 
+        return TID_ERROR; 
 
 	/* Add new_thread to ready_list */
 	thread_unblock(new_thread);
@@ -553,28 +556,7 @@ init_thread(struct thread *t, const char *name, int priority)
 	t->magic = THREAD_MAGIC;
 	list_init(&t->donations); // thread의 donation list 생성
 
-
-	// 아래 필요없음
-	// init structure for priority donation.  
-	// 각 스레드마다 우선순위 기부가 init_thread에서 이루어지게 된다.
-	// 첫 번째 스레드는 lock_acquire로 넘어가게됨.
-	// 새 스레드부터 우선 순위 비교를 하고 새 스레드의
-	// 우선 순위가 기존 스레드의 우선 순위보다 크면 우선순위 기부를 하자.
-
-	// 우선 순위 기부 순서?
-	// 1. prev thread 우선순위 new thread 우선순위로 변경
-	// 2. wait_on_lock을 lock을 가르킴.
-	// 3. prev의 donations에 new thread의 d_elem 추가.
-
-	// struct thread *prev;
-	// if(!list_empty(&ready_list)){
-	// 	prev = list_back(&ready_list);
-	// 	if(t->priority > prev->priority){
-	// 		prev->priority = t->priority;
-	// 		list_insert(&prev->donations,&t->d_elem);
-	// 	}
-	// }
-
+	t->next_fd = 2;
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
