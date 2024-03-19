@@ -223,13 +223,6 @@ int write(int fd, const void *buffer, unsigned size){
 	check_address(buffer);
 	struct file *f = process_get_file(fd);
 	
-    if(fd == 0){
-        return -1;
-    }else if(fd == 1){
-        putbuf(buffer, size);
-    }else{
-
-    }
 }
 
 //다음으로 읽거나 쓸 위치를 position으로 변경하는 함수
