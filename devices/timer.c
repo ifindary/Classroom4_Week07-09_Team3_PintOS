@@ -18,7 +18,7 @@
 #endif
 
 /* Number of timer ticks since OS booted. */
-static int64_t ticks; // global tick
+static int64_t ticks;
 
 /* Number of loops per timer tick.
    Initialized by timer_calibrate(). */
@@ -99,7 +99,7 @@ timer_elapsed(int64_t then)
 }
 
 /* Suspends execution for approximately TICKS timer ticks. */
-void timer_sleep(int64_t r_ticks)
+void timer_sleep(int64_t ticks)
 {
 	int64_t start = timer_ticks();
 
@@ -111,9 +111,10 @@ void timer_sleep(int64_t r_ticks)
 	 * thread_yield();
 	 */
 
-	// 현재 시작하는 Start 시점이, thread가 요청한 특정 시점 r_ticks를 경과했니?
-	if (timer_elapsed(start) < r_ticks)
-		thread_sleep(start + r_ticks); // 현재 시점으로부터 r_ticks만큼 지날때까지 재우기
+	// 현재 시작하는 Start 시점이, thread가 요청한 특정 시점 ticks를 경과했니?
+	if (timer_elapsed(start) < ticks)
+		// start 값이 invalid한 경우를 handling 해야 함!
+		thread_sleep(start + ticks); // 현재 시점으로부터 ticks만큼 지날때까지 재우기
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -153,9 +154,6 @@ timer_interrupt(struct intr_frame *args UNUSED)
 	 */
 
 	ticks++;
-
-	wake_up(ticks);
-
 	thread_tick();
 }
 
@@ -204,6 +202,8 @@ real_time_sleep(int64_t num, int32_t denom)
 	   */
 	int64_t ticks = num * TIMER_FREQ / denom;
 
+	printf("real_time step 0\n");
+
 	ASSERT(intr_get_level() == INTR_ON);
 	if (ticks > 0)
 	{
@@ -211,6 +211,8 @@ real_time_sleep(int64_t num, int32_t denom)
 		   timer_sleep() because it will yield the CPU to other
 		   processes. */
 		timer_sleep(ticks);
+
+		printf("real_time step 1\n");
 	}
 	else
 	{
@@ -219,5 +221,6 @@ real_time_sleep(int64_t num, int32_t denom)
 		   down by 1000 to avoid the possibility of overflow. */
 		ASSERT(denom % 1000 == 0);
 		busy_wait(loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000));
+		printf("real_time step 2\n");
 	}
 }

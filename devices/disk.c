@@ -123,6 +123,8 @@ disk_init (void) {
 		c->expecting_interrupt = false;
 		sema_init (&c->completion_wait, 0);
 
+		printf("init complete\n");
+
 		/* Initialize devices. */
 		for (dev_no = 0; dev_no < 2; dev_no++) {
 			struct disk *d = &c->devices[dev_no];
@@ -136,24 +138,42 @@ disk_init (void) {
 			d->read_cnt = d->write_cnt = 0;
 		}
 
+		printf("temp 1 complete\n");
+
 		/* Register interrupt handler. */
 		intr_register_ext (c->irq, interrupt_handler, c->name);
+
+		printf("temp 2 complete\n");
 
 		/* Reset hardware. */
 		reset_channel (c);
 
+		printf("temp 3 complete\n");
+		
 		/* Distinguish ATA hard disks from other devices. */
 		if (check_device_type (&c->devices[0]))
 			check_device_type (&c->devices[1]);
 
+		printf("temp 4 complete\n");
+		
 		/* Read hard disk identity information. */
 		for (dev_no = 0; dev_no < 2; dev_no++)
 			if (c->devices[dev_no].is_ata)
 				identify_ata_device (&c->devices[dev_no]);
+		
+
+		printf("temp 5 complete\n");
+		
 	}
+
+	printf("temp 2 complete\n");
 
 	/* DO NOT MODIFY BELOW LINES. */
 	register_disk_inspect_intr ();
+
+
+	printf("disk init complete");
+
 }
 
 /* Prints disk statistics. */
@@ -281,6 +301,8 @@ reset_channel (struct channel *c) {
 				&& inb (reg_lbal (c)) == 0xaa);
 	}
 
+	printf("temp 3-1 complete\n");
+
 	/* Issue soft reset sequence, which selects device 0 as a side effect.
 	   Also enable interrupts. */
 	outb (reg_ctl (c), 0);
@@ -289,13 +311,20 @@ reset_channel (struct channel *c) {
 	timer_usleep (10);
 	outb (reg_ctl (c), 0);
 
+	printf("temp 3-2 complete\n");
+
 	timer_msleep (150);
+
+	printf("temp 3-3 complete\n");
 
 	/* Wait for device 0 to clear BSY. */
 	if (present[0]) {
 		select_device (&c->devices[0]);
 		wait_while_busy (&c->devices[0]);
 	}
+
+
+	printf("temp 3-4 complete\n");
 
 	/* Wait for device 1 to clear BSY. */
 	if (present[1]) {
@@ -309,6 +338,9 @@ reset_channel (struct channel *c) {
 		}
 		wait_while_busy (&c->devices[1]);
 	}
+
+
+	printf("temp 3-5 complete\n");
 }
 
 /* Checks whether device D is an ATA disk and sets D's is_ata

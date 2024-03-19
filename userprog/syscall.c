@@ -44,3 +44,17 @@ syscall_handler (struct intr_frame *f UNUSED) {
 	printf ("system call!\n");
 	thread_exit ();
 }
+
+// int exec(const char *cmd_line){
+//     int size = strlen(cmd_line) + 1;
+//     char *fn_copy = palloc_get_page(PAL_ZERO);
+
+//     if (!fn_copy) exit(-1);
+
+//     strlcpy(fn_copy, cmd_line, size);
+
+// 	if (process_exec(fn_copy) == -1) return -1;
+
+// 	NOT_REACHED();
+// 	return 0;
+// }

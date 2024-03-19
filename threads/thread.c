@@ -278,6 +278,7 @@ void thread_block(void)
    update other data. */
 void thread_unblock(struct thread *t)
 {
+	//스레드가 unblocked 일 때, 우선순위 순서로 ready_list에 넣어라.
 	enum intr_level old_level;
 	ASSERT(is_thread(t));
 	old_level = intr_disable();
@@ -349,6 +350,7 @@ void thread_exit(void)
 스케줄러의 재량에 따라 즉시 다시 스케줄될 수 있습니다. */
 void thread_yield(void)
 {
+	// 현재 스레드를 cpu에 양보하고 우선 순위 순서로 ready_list에 넣어라.
 	enum intr_level old_level;
 	ASSERT(!intr_context());
 	old_level = intr_disable();
@@ -356,12 +358,12 @@ void thread_yield(void)
 	struct thread *curr = thread_current();
 	if (curr != idle_thread)
 	{
-		// 우선순위대로 정렬된 상태에서 현재 스레드를 삽입
+// 우선순위대로 정렬된 상태에서 현재 스레드를 삽입
 		list_insert_ordered(&ready_list, &curr->elem, list_less, NULL);
-		// ready_list를 우선순위에 따라 다시 정렬
+// ready_list를 우선순위에 따라 다시 정렬
 		list_sort(&ready_list, list_priority, NULL);
 	}
-	// 스케줄러를 호출하여 현재 스레드를 준비 상태로 설정
+// 스케줄러를 호출하여 현재 스레드를 준비 상태로 설정
 	do_schedule(THREAD_READY);
 	intr_set_level(old_level);
 }
@@ -425,6 +427,7 @@ void wake_up(int64_t now_ticks)
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority(int new_priority)
 {
+	// 우선순위 기부에 맞춰 우선순위 세팅하기
 	// struct thread *curr_thread, *ready_thread;
 	// curr_thread = thread_current();
 
@@ -440,14 +443,14 @@ void thread_set_priority(int new_priority)
 	// 		thread_yield();
 	// 	}
 	// }
-
+	 
 	thread_current()->given_priority = new_priority;
-	if (list_empty(&thread_current()->donations)) {
+	if (list_empty(&thread_current()->donations)) { 
 		thread_current()->priority = new_priority;
 	}
 	if (!list_empty(&ready_list) && list_entry(list_front(&ready_list), struct thread, elem)->priority > new_priority)
 		thread_yield();
-}
+} 
 
 /* Returns the current thread's priority. */
 int thread_get_priority(void)
@@ -534,7 +537,8 @@ kernel_thread(thread_func *function, void *aux)
 
 /* Does basic initialization of T as a blocked thread named
    NAME. */
-static void init_thread(struct thread *t, const char *name, int priority)
+static void
+init_thread(struct thread *t, const char *name, int priority)
 {
 	ASSERT(t != NULL);
 	ASSERT(PRI_MIN <= priority && priority <= PRI_MAX);
@@ -546,8 +550,8 @@ static void init_thread(struct thread *t, const char *name, int priority)
 	t->tf.rsp = (uint64_t)t + PGSIZE - sizeof(void *);
 	t->priority = priority;
 	t->magic = THREAD_MAGIC;
-
-	// lock_acqurie? / init structure for priority donation. 
+	
+	// lock_acqurie? / init structure for priority donation.  
 	t->given_priority = priority;
 	t->wait_on_lock = NULL;
 	list_init(&t->donations);

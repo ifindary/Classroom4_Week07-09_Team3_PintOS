@@ -158,6 +158,36 @@ error:
 	thread_exit ();
 }
 
+void argument_stack_for_user(char **argv, int argc, struct intr_frame *if_) {
+	for(int i = argc; i>=0; i--)
+	 {
+		int N = strlen(argv[i]) + 1;
+		if_->rsp -= N;
+		memcpy(if_->rsp, argv[i], N);
+		argv[i] = (char *)if_->rsp;
+	 }
+
+	 if(if_->rsp%8) {
+		int padding = if_->rsp%8;
+		if_->rsp -= padding;
+		memset(if_->rsp, 0, padding);
+	 }
+
+	 if_->rsp -= 8;
+	 memset(if_->rsp, 0, 8);
+
+	 for(int i = argc-1; i>=0; i--){
+		if_->rsp -= 8;
+		memcpy(if_->rsp, &argv[i], 8);
+	 }
+
+	 if_->rsp -= 8;
+	 memset(if_->rsp, 0, 8);
+
+	 if_->R.rdi = argc;
+	 if_->R.rsi = if_->rsp + 8;
+}
+
 /* Switch the current execution context to the f_name.
  * Returns -1 on fail. */
 int
@@ -176,13 +206,28 @@ process_exec (void *f_name) {
 	/* We first kill the current context */
 	process_cleanup ();
 
+	int argc = 0;
+	char *argv[64];
+	char *ret_ptr, *next_ptr;
+
+	// argument를 파싱, 그리고 argv[] 넣기
+	ret_ptr = strtok_r(file_name, " ", &next_ptr);
+	while (ret_ptr){
+		argv[argc++] = strtok_r(NULL, " ", &next_ptr);
+	}
+
 	/* And then load the binary */
 	success = load (file_name, &_if);
 
 	/* If load failed, quit. */
-	palloc_free_page (file_name);
 	if (!success)
 		return -1;
+
+	argument_stack_for_user(argv, argc, &_if);
+
+	hex_dump(_if.rsp, _if.rsp, USER_STACK - (uint64_t)*(&_if.rsp), true);
+
+	palloc_free_page (file_name);
 
 	/* Start switched process. */
 	do_iret (&_if);
@@ -204,6 +249,11 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
+	
+	// 반복시켜 주려고 임시로 넣는 코드
+	for(int i = 0; i < 100000000; i++){
+    }
+
 	return -1;
 }
 
