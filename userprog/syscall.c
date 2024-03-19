@@ -81,7 +81,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
             exit(f->R.rdi);
             break;
         case SYS_FORK:
-            //fork();
+            f->R.rax = fork(f->R.rdi);
             break;
         case SYS_EXEC:
             // f->R.rax = exec(f->R.rdi);
@@ -135,7 +135,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
     // SYS_OPEN,                   /* Open a file. */ O
     // SYS_FILESIZE,               /* Obtain a file's size. */ O
     // SYS_READ,                   /* Read from a file. */ O
-    // SYS_WRITE,                  /* Write to a file. */
+    // SYS_WRITE,                  /* Write to a file. */ O
     // SYS_SEEK,                   /* Change position in a file. */ O
     // SYS_TELL,                   /* Report current position in a file. */ O
     // SYS_CLOSE,                  /* Close a file. */ O
@@ -148,10 +148,12 @@ void check_address(void *addr){
         exit(-1);
     }
 }
+
 // 핀토스 종료 함수
 void halt(void){
     power_off();
 }
+
 //현재 유저 프로그램 종료 후 커널로 상태 반환하는 함수
 void exit(int status){
     struct thread *t = thread_current();
@@ -194,7 +196,7 @@ int filesize(int fd){
     if(f == NULL){
         return -1;
     }
-    
+    check_address(f);
     return file_length(f);
 }
 
@@ -222,18 +224,43 @@ int read(int fd, void *buffer, unsigned size){
 int write(int fd, const void *buffer, unsigned size){
 	check_address(buffer);
 	struct file *f = process_get_file(fd);
-	
+	int result;
+
+	lock_acquire(&filesys_lock);
+
+	if(fd == 1){
+		putbuf(buffer,size);
+		result = size;
+	}else if(fd < 2){
+		lock_release(&filesys_lock);
+		return -1;
+	}else{
+		if(f == NULL){
+			return -1;
+		}
+		result = file_write(f,buffer,size);
+	}
+	lock_release(&filesys_lock);
+	return result;
 }
 
 //다음으로 읽거나 쓸 위치를 position으로 변경하는 함수
 void seek(int fd, unsigned position){
     struct file *f = process_get_file(fd);
+	if(f == NULL){
+		return -1;
+	}
+	check_address(f);
     file_seek(f,position);
 }
 
 // 다음으로 읽거나 쓸 위치 반환 함수
 unsigned tell(int fd){
     struct file *f = process_get_file(fd);
+	if(f == NULL){
+		return -1;
+	}
+	check_address(f);
 
     return file_tell(f);    
 }
@@ -241,9 +268,17 @@ unsigned tell(int fd){
 void close(int fd){
     struct file *f = process_get_file(fd);
 
+	if(f == NULL){
+		return -1;
+	}
+	check_address(f);
     file_close(f);
 
     process_close_file(fd);
+}
+
+pid_t fork(const char *thread_name){
+	
 }
 
 // function for fdt(1. process_add_file 2. process_get_file 3. process_close_file)
