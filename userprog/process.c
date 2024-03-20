@@ -338,7 +338,6 @@ process_exit (void) {
 
 	process_cleanup ();
 	file_close(curr->running);
-	sema_up(&curr->wait_sema);
 	// sema_down(&curr->exit_sema);
 }
 
