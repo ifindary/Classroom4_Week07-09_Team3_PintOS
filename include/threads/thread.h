@@ -7,6 +7,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/interrupt.h"
+#include "threads/synch.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -106,9 +107,19 @@ struct thread
 	struct list_elem d_elem; // 기부 요소
 
 	// file descriptor table 
+	int exit_status;
 	struct file **fdt;
 	int next_fd;
 	
+  	struct intr_frame parent_if;
+  	struct list child_list;
+	struct list_elem child_elem;
+
+	struct semaphore load_sema;
+	struct semaphore exit_sema;
+	struct semaphore wait_sema;
+
+	struct file *running;
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */

@@ -11,5 +11,6 @@ void process_exit (void);
 void process_activate (struct thread *next);
 
 void argument_stack(char **argv, int argc, void **rsp);
+struct thread *get_child_process(int pid);
 
 #endif /* userprog/process.h */
