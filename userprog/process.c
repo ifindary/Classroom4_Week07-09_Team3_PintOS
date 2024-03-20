@@ -314,7 +314,7 @@ process_wait (tid_t child_tid UNUSED) {
 	struct thread *child = get_child_process(child_tid);
 	if(child == NULL)
 		return -1;
-		
+
 	sema_down(&child->wait_sema);
 	list_remove(&child->child_elem);
 	// sema_up(&child->exit_sema);
@@ -333,10 +333,11 @@ process_exit (void) {
 	// for(int i = 2; i < FDT_COUNT_LIMIT; i++){
 	// 	close(i);
 	// }
-	// palloc_free_multiple(curr->fdt,FDT_PAGES);
+	palloc_free_multiple(curr->fdt,FDT_PAGES);
 	// file_close(curr->running);
 
 	process_cleanup ();
+	file_close(curr->running);
 	sema_up(&curr->wait_sema);
 	// sema_down(&curr->exit_sema);
 }
@@ -528,6 +529,8 @@ load (const char *file_name, struct intr_frame *if_) {
 				break;
 		}
 	}
+	t->running = file;
+	file_deny_write(file);
 
 	/* Set up stack. */
 	if (!setup_stack (if_))
@@ -542,7 +545,7 @@ load (const char *file_name, struct intr_frame *if_) {
 	success = true;
 done:
 	/* We arrive here whether the load is successful or not. */
-	file_close (file);
+	// file_close (file);
 	return success;
 }
 

@@ -156,9 +156,11 @@ void exit(int status){
 }
 
 bool create(const char *file, unsigned initial_size){
+    lock_acquire(&filesys_lock);
     check_address(file);
-
-    return filesys_create(file,initial_size);
+    bool success = filesys_create(file,initial_size);
+    lock_release(&filesys_lock);
+    return success;
 }
 
 bool remove(const char *file){
@@ -169,14 +171,17 @@ bool remove(const char *file){
 // 파일을 여는 함수
 int open(const char *file){
     check_address(file);
+    lock_acquire(&filesys_lock);
     struct file *f = filesys_open(file);
     if(f == NULL){
+        lock_release(&filesys_lock);
         return -1;
     }
     int result = process_add_file(f);
     if(result == -1){
         file_close(f);
     }
+    lock_release(&filesys_lock);
     return result;
 }
 
@@ -194,10 +199,12 @@ int read(int fd, void *buffer, unsigned size){
 	check_address(buffer);
     int result = 0;
 
+    lock_acquire(&filesys_lock);
     if(fd == 0){
         *(char *)buffer = input_getc();
 		result = size;
     }else if(fd < 2){
+        lock_release(&filesys_lock);
 		return -1;
 	}else{
     	struct file *f = process_get_file(fd);
@@ -206,6 +213,7 @@ int read(int fd, void *buffer, unsigned size){
 		}
 		result = file_read(f,buffer,size);
 	}
+    lock_release(&filesys_lock);
 	return result;
 }
 
@@ -223,7 +231,9 @@ int write(int fd, const void *buffer, unsigned size){
 		if(f == NULL){
 			return -1;
 		}
+        lock_acquire(&filesys_lock);
 		result = file_write(f,buffer,size);
+        lock_release(&filesys_lock);
 	}
 
 	return result;
@@ -231,22 +241,22 @@ int write(int fd, const void *buffer, unsigned size){
 
 //다음으로 읽거나 쓸 위치를 position으로 변경하는 함수
 void seek(int fd, unsigned position){
-    // struct file *f = process_get_file(fd);
-	// if(f == NULL){
-	// 	return;
-	// }
+    struct file *f = process_get_file(fd);
+	if(f == NULL){
+		return;
+	}
 	
-    file_seek(fd,position);
+    file_seek(f,position);
 }
 
 // 다음으로 읽거나 쓸 위치 반환 함수
 unsigned tell(int fd){
-    // struct file *f = process_get_file(fd);
-	// if(f == NULL){
-	// 	return -1;
-	// }
+    struct file *f = process_get_file(fd);
+	if(f == NULL){
+		return -1;
+	}
 
-    return file_tell(fd);    
+    return file_tell(f);    
 }
 // 열린 파일 닫는 함수
 void close(int fd){
