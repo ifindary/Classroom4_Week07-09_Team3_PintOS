@@ -253,7 +253,7 @@ tid_t thread_create(const char *name, int priority,
 		// Insert curr_thread to ready_list
 		thread_yield();
 	}
-
+	list_push_back(&thread_current()->child_list, &new_thread->child_elem);
 	return tid;
 }
 
@@ -430,22 +430,6 @@ void wake_up(int64_t now_ticks)
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority(int new_priority)
 {
-	// 우선순위 기부에 맞춰 우선순위 세팅하기
-	// struct thread *curr_thread, *ready_thread;
-	// curr_thread = thread_current();
-
-	// curr_thread->priority = new_priority;
-
-	// if (!list_empty(&ready_list))
-	// {
-	// 	ready_thread = list_entry(list_front(&ready_list), struct thread, elem);
-
-	// 	if (ready_thread->priority > curr_thread->priority)
-	// 	{
-	// 		// Insert curr_thread to ready_list
-	// 		thread_yield();
-	// 	}
-	// }
 	// 우선순위가 새로 세팅되기 때문에 원래 값 변경 
 	thread_current()->own_priority = new_priority;
 	if (list_empty(&thread_current()->donations)) { 
@@ -556,7 +540,12 @@ init_thread(struct thread *t, const char *name, int priority)
 	t->magic = THREAD_MAGIC;
 	list_init(&t->donations); // thread의 donation list 생성
 
+	t->exit_status = 0;
 	t->next_fd = 2;
+	sema_init(&t->load_sema,0);
+	sema_init(&t->exit_sema,0);
+	sema_init(&t->wait_sema,0);
+	list_init(&t->child_list);
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should

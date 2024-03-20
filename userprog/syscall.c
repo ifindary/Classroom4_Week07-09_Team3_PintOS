@@ -12,6 +12,9 @@
 #include "../include/lib/user/syscall.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
+#include <string.h>
+#include "threads/palloc.h"
+#include "userprog/process.h"
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
@@ -67,11 +70,13 @@ syscall_init (void) {
     lock_init(&filesys_lock);
 }
 
+static struct intr_frame *frame;
 /* The main system call interface */
-void
-syscall_handler (struct intr_frame *f UNUSED) {
+void syscall_handler (struct intr_frame *f UNUSED) {
     // TODO: Your implementation goes here.
     int syscall = f->R.rax;
+    
+    frame = f;
     
     switch (syscall){
         case SYS_HALT:
@@ -84,13 +89,13 @@ syscall_handler (struct intr_frame *f UNUSED) {
             f->R.rax = fork(f->R.rdi);
             break;
         case SYS_EXEC:
-            // f->R.rax = exec(f->R.rdi);
+            f->R.rax = exec(f->R.rdi);
             break;
         case SYS_WAIT:
-            // wait();
+            f->R.rax = wait(f->R.rdi);
             break;
         case SYS_CREATE:
-            f->R.rax = create(f->R.rdi,f->R.rsi);
+            f->R.rax = create(f->R.rdi, f->R.rsi);
             break;
         case SYS_REMOVE:
             f->R.rax = remove(f->R.rdi);
@@ -118,6 +123,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
             break;
 
         default:
+            thread_exit();
             break;
     }
     // printf ("system call!\n");
@@ -125,21 +131,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
     // thread_exit ();
 }
 
-    // SYS_HALT,                   /* Halt the operating system. */ O O 
-    // SYS_EXIT,                   /* Terminate this process. */ O O
-    // SYS_FORK,                   /* Clone current process. */
-    // SYS_EXEC,                   /* Switch current process. */ 
-    // SYS_WAIT,                   /* Wait for a child process to die. */
-    // SYS_CREATE,                 /* Create a file. */ O O 
-    // SYS_REMOVE,                 /* Delete a file. */ O
-    // SYS_OPEN,                   /* Open a file. */ O
-    // SYS_FILESIZE,               /* Obtain a file's size. */ O
-    // SYS_READ,                   /* Read from a file. */ O
-    // SYS_WRITE,                  /* Write to a file. */ O
-    // SYS_SEEK,                   /* Change position in a file. */ O
-    // SYS_TELL,                   /* Report current position in a file. */ O
-    // SYS_CLOSE,                  /* Close a file. */ O
-
+ 
 void check_address(void *addr){
     if(!is_user_vaddr(addr) || addr == NULL){
         exit(-1);
@@ -157,7 +149,7 @@ void halt(void){
 //현재 유저 프로그램 종료 후 커널로 상태 반환하는 함수
 void exit(int status){
     struct thread *t = thread_current();
-    
+    t->exit_status = status;
     printf ("%s: exit(%d)\n", t->name, status);
 
     thread_exit();
@@ -177,7 +169,6 @@ bool remove(const char *file){
 // 파일을 여는 함수
 int open(const char *file){
     check_address(file);
-
     struct file *f = filesys_open(file);
     if(f == NULL){
         return -1;
@@ -185,10 +176,10 @@ int open(const char *file){
     int result = process_add_file(f);
     if(result == -1){
         file_close(f);
-        // return -1;
     }
     return result;
 }
+
 //열려있는 파일의 크기 반환하는 함수
 int filesize(int fd){
     struct file *f = process_get_file(fd);
@@ -196,13 +187,12 @@ int filesize(int fd){
     if(f == NULL){
         return -1;
     }
-    check_address(f);
     return file_length(f);
 }
 
 int read(int fd, void *buffer, unsigned size){
 	check_address(buffer);
-    int result;
+    int result = 0;
 
     if(fd == 0){
         *(char *)buffer = input_getc();
@@ -214,9 +204,7 @@ int read(int fd, void *buffer, unsigned size){
 		if(f == NULL){
 			return -1;
 		}
-		lock_acquire(&filesys_lock);
 		result = file_read(f,buffer,size);
-		lock_release(&filesys_lock);
 	}
 	return result;
 }
@@ -226,13 +214,10 @@ int write(int fd, const void *buffer, unsigned size){
 	struct file *f = process_get_file(fd);
 	int result;
 
-	lock_acquire(&filesys_lock);
-
 	if(fd == 1){
 		putbuf(buffer,size);
 		result = size;
 	}else if(fd < 2){
-		lock_release(&filesys_lock);
 		return -1;
 	}else{
 		if(f == NULL){
@@ -240,45 +225,59 @@ int write(int fd, const void *buffer, unsigned size){
 		}
 		result = file_write(f,buffer,size);
 	}
-	lock_release(&filesys_lock);
+
 	return result;
 }
 
 //다음으로 읽거나 쓸 위치를 position으로 변경하는 함수
 void seek(int fd, unsigned position){
-    struct file *f = process_get_file(fd);
-	if(f == NULL){
-		return -1;
-	}
-	check_address(f);
-    file_seek(f,position);
+    // struct file *f = process_get_file(fd);
+	// if(f == NULL){
+	// 	return;
+	// }
+	
+    file_seek(fd,position);
 }
 
 // 다음으로 읽거나 쓸 위치 반환 함수
 unsigned tell(int fd){
-    struct file *f = process_get_file(fd);
-	if(f == NULL){
-		return -1;
-	}
-	check_address(f);
+    // struct file *f = process_get_file(fd);
+	// if(f == NULL){
+	// 	return -1;
+	// }
 
-    return file_tell(f);    
+    return file_tell(fd);    
 }
 // 열린 파일 닫는 함수
 void close(int fd){
     struct file *f = process_get_file(fd);
 
 	if(f == NULL){
-		return -1;
+		return;
 	}
-	check_address(f);
     file_close(f);
 
     process_close_file(fd);
 }
 
 pid_t fork(const char *thread_name){
-	
+	return process_fork(thread_name, frame);
+}
+
+int exec(const char *cmd_line){
+	check_address(cmd_line);
+	char *cpy_cmd_line =  palloc_get_page(0);
+	if(cpy_cmd_line == NULL){
+		exit(-1);
+	}
+	strlcpy(cpy_cmd_line,cmd_line,PGSIZE);
+
+    if(process_exec(cpy_cmd_line) == -1){
+        exit(-1);
+    }
+}
+int wait(pid_t pid){
+    return process_wait(pid);
 }
 
 // function for fdt(1. process_add_file 2. process_get_file 3. process_close_file)
